@@ -1,5 +1,6 @@
 import mimetypes
 import json
+from datetime import datetime
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, unquote_plus
@@ -27,9 +28,9 @@ class MyHttpServer (BaseHTTPRequestHandler):
 
     def do_POST(self):
         size = int(self.headers['Content-Length'])
-        body = self.rfile.read(size).decode()
-        print(body)
-        print(unquote_plus(body))
+        data = self.rfile.read(size).decode()
+        body = unquote_plus(data)
+        self.save_message(body)
         self.send_response(302)
         self.send_header('Location', '/')
         self.end_headers()
@@ -39,7 +40,10 @@ class MyHttpServer (BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         with open("storage/data.json", 'r', encoding='utf-8') as f:
-            content = json.load(f)
+            try:
+                content = json.load(f)
+            except(json.JSONDecodeError, ValueError):
+                content = {}
         template = jinja.get_template(filename)
         html = template.render(messages=content)
         self.wfile.write(html.encode())
@@ -59,9 +63,25 @@ class MyHttpServer (BaseHTTPRequestHandler):
         with open(filename, 'rb') as f:
             self.wfile.write(f.read())
 
+    def save_message(self, body):
+        message = {
+            key: value for key, value in [item.split("=") for item in body.split("&")]
+        }
+        date = datetime.now().isoformat()
+        record = {date: message}
+        with open("storage/data.json", 'r+', encoding='utf-8') as f:
+            try:
+                data = json.load(f)
+            except(json.JSONDecodeError, ValueError):
+                data = {}
+            data.update(record)
+            f.seek(0)
+            json.dump(data, f, indent=4, ensure_ascii=False)
+            f.truncate()
+
 def run(server_class=HTTPServer, handler_class=MyHttpServer, port=3000):
     server_address = ('', port)
-    httpd = server_class(server_address, handler_class)  #noqa
+    httpd = server_class(server_address, handler_class)   #noqa
     httpd.serve_forever()
 
 if __name__ == '__main__':
