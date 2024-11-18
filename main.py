@@ -17,7 +17,7 @@ class MyHttpServer (BaseHTTPRequestHandler):
                 self.send_HTML("index.html")
             case "/message":
                 self.send_HTML("message.html")
-            case "/messages":
+            case "/read":
                 self.render_template("messages.jinja")
             case _:
                 file = BASE_DIR.joinpath(route[1:])
